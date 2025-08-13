@@ -36,21 +36,45 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     @Override
     public void onBindViewHolder(@NonNull ProductViewHolder holder, int position) {
         IceCreamProduct product = products.get(position);
-        holder.tvName.setText(product.getName());
-        holder.tvPrice.setText(String.format("Rp %.0f", product.getPrice()));
-        holder.tvStock.setText(String.format("Stok: %d", product.getStock()));
-        holder.ivProduct.setImageResource(product.getImageResId());
 
-        holder.btnAdd.setOnClickListener(v -> {
-            if (listener != null) {
-                listener.onAddProduct(product);
+        // Pastikan produk tidak null
+        if (product != null) {
+            holder.tvName.setText(product.getName());
+            holder.tvPrice.setText(String.format("Rp %.0f", product.getPrice()));
+            holder.tvStock.setText(String.format("Stok: %d", product.getStock()));
+
+            // Perbaiki masalah image resource ID
+            try {
+                // Cek apakah imageResId valid
+                if (product.getImageResId() > 0) {
+                    holder.ivProduct.setImageResource(product.getImageResId());
+                } else {
+                    // Gunakan gambar default jika tidak valid
+                    holder.ivProduct.setImageResource(R.drawable.ic_default_product);
+                }
+            } catch (Exception e) {
+                // Jika terjadi error, gunakan gambar default
+                holder.ivProduct.setImageResource(R.drawable.ic_default_product);
+                e.printStackTrace();
             }
-        });
+
+            holder.btnAdd.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onAddProduct(product);
+                }
+            });
+        } else {
+            // Jika produk null, tampilkan pesan error
+            holder.tvName.setText("Produk tidak ditemukan");
+            holder.tvPrice.setText("");
+            holder.tvStock.setText("");
+            holder.ivProduct.setImageResource(R.drawable.ic_default_product);
+        }
     }
 
     @Override
     public int getItemCount() {
-        return products.size();
+        return products != null ? products.size() : 0;
     }
 
     static class ProductViewHolder extends RecyclerView.ViewHolder {

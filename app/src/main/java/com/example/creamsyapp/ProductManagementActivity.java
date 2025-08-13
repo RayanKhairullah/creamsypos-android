@@ -1,6 +1,5 @@
 package com.example.creamsyapp;
 
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -19,14 +18,22 @@ import java.util.List;
 public class ProductManagementActivity extends AppCompatActivity {
     private List<IceCreamProduct> products;
     private ProductManagementAdapter productAdapter;
-    private boolean isEditingMode = false;
     private boolean isDeletingMode = false;
     private List<IceCreamProduct> selectedProducts = new ArrayList<>();
+    private SupabaseHelper supabaseHelper;
+
+    // Konstanta untuk request code
+    public static final int PRODUCT_ADDED_REQUEST_CODE = 1001;
+    public static final int PRODUCT_UPDATED_REQUEST_CODE = 1002;
+    public static final int PRODUCT_DELETED_REQUEST_CODE = 1003;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_product_management);
+
+        // Inisialisasi SupabaseHelper
+        supabaseHelper = SupabaseHelper.getInstance();
 
         // Ambil daftar produk dari intent
         products = getIntent().getParcelableArrayListExtra("products");
@@ -43,15 +50,7 @@ public class ProductManagementActivity extends AppCompatActivity {
         productsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (isEditingMode) {
-                    // Edit produk
-                    IceCreamProduct product = products.get(position);
-                    Intent intent = new Intent(ProductManagementActivity.this, AddProductActivity.class);
-
-                    // Jika ini mode edit, kirim data produk yang akan diedit
-                    intent.putExtra("edit_product", product);
-                    startActivityForResult(intent, 1);
-                } else if (isDeletingMode) {
+                if (isDeletingMode) {
                     // Toggle produk yang dipilih untuk dihapus
                     IceCreamProduct product = products.get(position);
                     if (selectedProducts.contains(product)) {
@@ -60,46 +59,17 @@ public class ProductManagementActivity extends AppCompatActivity {
                         selectedProducts.add(product);
                     }
                     productAdapter.notifyDataSetChanged();
+                } else {
+                    // Edit produk
+                    IceCreamProduct product = products.get(position);
+                    Intent intent = new Intent(ProductManagementActivity.this, AddProductActivity.class);
+
+                    // Jika ini mode edit, kirim data produk yang akan diedit
+                    intent.putExtra("edit_product", product);
+                    startActivityForResult(intent, 1);
                 }
             }
         });
-
-        // Setup klik lama untuk masuk ke mode edit atau hapus
-        productsListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                showSelectionModeDialog();
-                return true;
-            }
-        });
-    }
-
-    private void showSelectionModeDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Pilih Mode")
-                .setMessage("Apa yang ingin Anda lakukan?")
-                .setPositiveButton("Edit Produk", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        isEditingMode = true;
-                        isDeletingMode = false;
-                        selectedProducts.clear();
-                        productAdapter.notifyDataSetChanged();
-                        Toast.makeText(ProductManagementActivity.this, "Klik produk untuk mengedit", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Hapus Produk", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        isEditingMode = false;
-                        isDeletingMode = true;
-                        selectedProducts.clear();
-                        productAdapter.notifyDataSetChanged();
-                        Toast.makeText(ProductManagementActivity.this, "Pilih produk yang akan dihapus", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNeutralButton("Batal", null)
-                .show();
     }
 
     @Override
@@ -113,10 +83,10 @@ public class ProductManagementActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         if (id == R.id.action_done) {
-            if (isEditingMode || isDeletingMode) {
-                isEditingMode = false;
+            if (isDeletingMode) {
                 isDeletingMode = false;
                 selectedProducts.clear();
+                productAdapter.setDeletingMode(false);
                 productAdapter.notifyDataSetChanged();
                 return true;
             }
@@ -130,6 +100,11 @@ public class ProductManagementActivity extends AppCompatActivity {
             if (isDeletingMode && !selectedProducts.isEmpty()) {
                 deleteSelectedProducts();
                 return true;
+            } else if (!isDeletingMode) {
+                isDeletingMode = true;
+                productAdapter.setDeletingMode(true);
+                productAdapter.notifyDataSetChanged();
+                return true;
             }
         }
 
@@ -140,21 +115,33 @@ public class ProductManagementActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Konfirmasi Hapus")
                 .setMessage("Apakah Anda yakin ingin menghapus " + selectedProducts.size() + " produk terpilih?")
-                .setPositiveButton("Ya", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        products.removeAll(selectedProducts);
-                        selectedProducts.clear();
-                        isDeletingMode = false;
-                        productAdapter.notifyDataSetChanged();
+                .setPositiveButton("Ya", (dialog, which) -> {
+                    for (IceCreamProduct product : selectedProducts) {
+                        // Hapus dari Supabase
+                        supabaseHelper.deleteProduct(product.getId(), new SupabaseHelper.DatabaseCallback() {
+                            @Override
+                            public void onSuccess(String id) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProductManagementActivity.this,
+                                            "Produk berhasil dihapus", Toast.LENGTH_SHORT).show();
+                                });
+                            }
 
-                        // Kembalikan daftar produk yang diperbarui ke MainActivity
-                        Intent resultIntent = new Intent();
-                        resultIntent.putParcelableArrayListExtra("updated_products", new ArrayList<>(products));
-                        setResult(RESULT_OK, resultIntent);
-
-                        Toast.makeText(ProductManagementActivity.this, "Produk berhasil dihapus", Toast.LENGTH_SHORT).show();
+                            @Override
+                            public void onError(String error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProductManagementActivity.this,
+                                            "Gagal menghapus produk: " + error, Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
                     }
+
+                    // Beri tahu MainActivity untuk memperbarui daftar produk
+                    Intent resultIntent = new Intent();
+                    resultIntent.putExtra("product_deleted", true);
+                    setResult(RESULT_OK, resultIntent);
+                    finish();
                 })
                 .setNegativeButton("Tidak", null)
                 .show();
@@ -170,35 +157,58 @@ public class ProductManagementActivity extends AppCompatActivity {
                     // Tambah produk baru
                     IceCreamProduct newProduct = data.getParcelableExtra("new_product");
                     if (newProduct != null) {
-                        products.add(newProduct);
-                        productAdapter.notifyDataSetChanged();
+                        // Simpan ke Supabase
+                        supabaseHelper.addProduct(newProduct, new SupabaseHelper.DatabaseCallback() {
+                            @Override
+                            public void onSuccess(String id) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProductManagementActivity.this, "Produk berhasil ditambahkan", Toast.LENGTH_SHORT).show();
 
-                        // Kembalikan daftar produk yang diperbarui ke MainActivity
-                        Intent resultIntent = new Intent();
-                        resultIntent.putParcelableArrayListExtra("updated_products", new ArrayList<>(products));
-                        setResult(RESULT_OK, resultIntent);
+                                    // Beri tahu MainActivity untuk memperbarui daftar produk
+                                    Intent resultIntent = new Intent();
+                                    resultIntent.putExtra("product_added", true);
+                                    setResult(RESULT_OK, resultIntent);
+                                    finish();
+                                });
+                            }
 
-                        Toast.makeText(this, "Produk berhasil ditambahkan", Toast.LENGTH_SHORT).show();
+                            @Override
+                            public void onError(String error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProductManagementActivity.this, "Gagal menambahkan produk: " + error,
+                                            Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
                     }
                 }
                 else if (data.hasExtra("edit_product")) {
                     // Update produk yang diedit
                     IceCreamProduct editedProduct = data.getParcelableExtra("edit_product");
                     if (editedProduct != null) {
-                        for (int i = 0; i < products.size(); i++) {
-                            if (products.get(i).getId().equals(editedProduct.getId())) {
-                                products.set(i, editedProduct);
-                                break;
+                        // Update di Supabase
+                        supabaseHelper.updateProduct(editedProduct, new SupabaseHelper.DatabaseCallback() {
+                            @Override
+                            public void onSuccess(String id) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProductManagementActivity.this, "Produk berhasil diperbarui", Toast.LENGTH_SHORT).show();
+
+                                    // Beri tahu MainActivity untuk memperbarui daftar produk
+                                    Intent resultIntent = new Intent();
+                                    resultIntent.putExtra("product_updated", true);
+                                    setResult(RESULT_OK, resultIntent);
+                                    finish();
+                                });
                             }
-                        }
-                        productAdapter.notifyDataSetChanged();
 
-                        // Kembalikan daftar produk yang diperbarui ke MainActivity
-                        Intent resultIntent = new Intent();
-                        resultIntent.putParcelableArrayListExtra("updated_products", new ArrayList<>(products));
-                        setResult(RESULT_OK, resultIntent);
-
-                        Toast.makeText(this, "Produk berhasil diperbarui", Toast.LENGTH_SHORT).show();
+                            @Override
+                            public void onError(String error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ProductManagementActivity.this, "Gagal memperbarui produk: " + error,
+                                            Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
                     }
                 }
             }
@@ -207,10 +217,10 @@ public class ProductManagementActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (isEditingMode || isDeletingMode) {
-            isEditingMode = false;
+        if (isDeletingMode) {
             isDeletingMode = false;
             selectedProducts.clear();
+            productAdapter.setDeletingMode(false);
             productAdapter.notifyDataSetChanged();
         } else {
             super.onBackPressed();

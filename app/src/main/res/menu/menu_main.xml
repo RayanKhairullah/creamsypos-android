@@ -11,4 +11,9 @@
         android:title="Riwayat Transaksi"
         android:icon="@android:drawable/ic_menu_recent_history"
         app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_logout"
+        android:title="Logout"
+        android:icon="@android:drawable/ic_lock_power_off"
+        app:showAsAction="never" />
 </menu>

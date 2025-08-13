@@ -3,14 +3,25 @@ package com.example.creamsyapp;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.google.gson.annotations.SerializedName;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class Transaction implements Parcelable {
+    @SerializedName("id")
     private String id;
+
+    @SerializedName("items")
     private List<IceCreamProduct> items;
+
+    @SerializedName("total")
     private double total;
+
+    @SerializedName("timestamp")
     private Date timestamp;
 
     public Transaction(String id, List<IceCreamProduct> items, double total, Date timestamp) {
@@ -45,6 +56,11 @@ public class Transaction implements Parcelable {
     public List<IceCreamProduct> getItems() { return items; }
     public double getTotal() { return total; }
     public Date getTimestamp() { return timestamp; }
+
+    public String getFormattedDate() {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+        return sdf.format(timestamp);
+    }
 
     @Override
     public int describeContents() {

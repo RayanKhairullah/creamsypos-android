@@ -99,9 +99,10 @@ public class AddProductActivity extends AppCompatActivity {
             product = new IceCreamProduct(
                     editProduct.getId(), name, price, stock, selectedImageResId);
         } else {
-            // Buat produk baru
+            // Buat produk baru dengan ID UUID
+            String productId = UUID.randomUUID().toString();
             product = new IceCreamProduct(
-                    UUID.randomUUID().toString(), name, price, stock, selectedImageResId);
+                    productId, name, price, stock, selectedImageResId);
         }
 
         // Kembalikan produk ke activity pemanggil

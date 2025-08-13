@@ -14,7 +14,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-       }
+    }
 
     buildTypes {
         release {
@@ -32,6 +32,15 @@ android {
 }
 
 dependencies {
+    // Tambahkan Retrofit untuk REST API
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Tambahkan Gson untuk parsing JSON
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Tambahkan OkHttp untuk logging
+    implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.2")
 
     implementation(libs.appcompat)
     implementation(libs.material)
@@ -40,5 +49,4 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-
 }

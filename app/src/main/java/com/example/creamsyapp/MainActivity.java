@@ -7,14 +7,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.LayoutInflater;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,36 +30,95 @@ public class MainActivity extends AppCompatActivity {
     private List<IceCreamProduct> products = new ArrayList<>();
     private List<IceCreamProduct> cart = new ArrayList<>();
     private List<Transaction> transactionHistory = new ArrayList<>();
-    private ArrayAdapter<IceCreamProduct> cartAdapter;
+    private ArrayAdapter<CartLine> cartAdapter;
+    private final List<CartLine> cartLines = new ArrayList<>();
     private TextView totalTextView;
     private double total = 0;
 
     // Konstanta untuk request code
-    private static final int ADD_PRODUCT_REQUEST_CODE = 2;
     private static final int PRODUCT_MANAGEMENT_REQUEST_CODE = 3;
+
+    private SupabaseHelper supabaseHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        // Inisialisasi sesi (auto-login dengan refresh token bila ada)
+        supabaseHelper = SupabaseHelper.getInstance();
+        supabaseHelper.init(getApplicationContext());
+        supabaseHelper.initializeSession(this, new SupabaseHelper.SessionInitCallback() {
+            @Override
+            public void onReady() { runOnUiThread(() -> setupUI()); }
+            @Override
+            public void onRequireLogin() {
+                runOnUiThread(() -> {
+                    Intent intent = new Intent(MainActivity.this, AuthActivity.class);
+                    startActivity(intent);
+                    finish();
+                });
+            }
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(MainActivity.this, AuthActivity.class);
+                    startActivity(intent);
+                    finish();
+                });
+            }
+        });
+    }
 
-        // Inisialisasi produk default
-        initProducts();
+    private void setupUI() {
+        setContentView(R.layout.activity_main);
 
         // Setup cart ListView
         ListView cartListView = findViewById(R.id.cart_list_view);
         totalTextView = findViewById(R.id.total_text_view);
 
-        cartAdapter = new ArrayAdapter<>(this, R.layout.cart_item, cart) {
+        cartAdapter = new ArrayAdapter<CartLine>(this, R.layout.cart_item, cartLines) {
             @Override
             public View getView(int position, View convertView, android.view.ViewGroup parent) {
                 if (convertView == null) {
                     convertView = getLayoutInflater().inflate(R.layout.cart_item, parent, false);
                 }
                 TextView itemText = convertView.findViewById(R.id.cart_item_text);
-                IceCreamProduct product = cart.get(position);
-                itemText.setText(String.format("%s - Rp %.0f (Stok: %d)",
-                        product.getName(), product.getPrice(), product.getStock()));
+                TextView tvQty = convertView.findViewById(R.id.tv_quantity);
+                View btnPlus = convertView.findViewById(R.id.btn_plus);
+                View btnMinus = convertView.findViewById(R.id.btn_minus);
+
+                CartLine line = cartLines.get(position);
+                IceCreamProduct product = line.product;
+                int qty = line.quantity;
+
+                itemText.setText(String.format(Locale.getDefault(), "%s - Rp %.0f", product.getName(), product.getPrice()));
+                tvQty.setText(String.valueOf(qty));
+
+                btnPlus.setOnClickListener(v -> {
+                    // Add one unit if stock allows
+                    int inCart = countInCart(product.getId());
+                    if (product.getStock() > inCart) {
+                        cart.add(product);
+                        total += product.getPrice();
+                        totalTextView.setText(String.format(Locale.getDefault(), "Total: Rp %.0f", total));
+                        rebuildCartLines();
+                        notifyDataSetChanged();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Stok " + product.getName() + " habis!", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                btnMinus.setOnClickListener(v -> {
+                    // Remove one unit
+                    boolean removed = removeOneFromCart(product.getId());
+                    if (removed) {
+                        total -= product.getPrice();
+                        if (total < 0) total = 0;
+                        totalTextView.setText(String.format(Locale.getDefault(), "Total: Rp %.0f", total));
+                        rebuildCartLines();
+                        notifyDataSetChanged();
+                    }
+                });
                 return convertView;
             }
         };
@@ -78,55 +135,140 @@ public class MainActivity extends AppCompatActivity {
         Button btnCheckout = findViewById(R.id.btn_checkout);
         btnCheckout.setOnClickListener(v -> checkout());
 
-        // Muat riwayat transaksi dari penyimpanan (simulasi)
-        loadTransactionHistory();
+        // Muat data dari Supabase
+        loadDataFromSupabase();
     }
 
-    private void initProducts() {
-        // Produk default dengan stok dan gambar
-        products.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Vanilla", 5000, 10, R.drawable.ic_vanilla));
-        products.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Chocolate", 6000, 10, R.drawable.ic_chocolate));
-        products.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Strawberry", 5500, 10, R.drawable.ic_strawberry));
+    // Helper to count occurrences of a product id in cart
+    private int countInCart(String productId) {
+        int c = 0;
+        for (IceCreamProduct p : cart) {
+            if (p.getId().equals(productId)) c++;
+        }
+        return c;
     }
 
-    private void loadTransactionHistory() {
-        // Dalam aplikasi nyata, ini akan memuat dari database atau penyimpanan
-        // Di sini kita hanya membuat beberapa transaksi contoh
-        List<IceCreamProduct> sampleItems = new ArrayList<>();
-        sampleItems.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Vanilla", 5000, 10, R.drawable.ic_vanilla));
-        sampleItems.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Chocolate", 6000, 10, R.drawable.ic_chocolate));
+    // Helper to remove one occurrence of a product id from cart
+    private boolean removeOneFromCart(String productId) {
+        for (int i = 0; i < cart.size(); i++) {
+            if (cart.get(i).getId().equals(productId)) {
+                cart.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
 
-        transactionHistory.add(new Transaction(
-                UUID.randomUUID().toString(),
-                sampleItems,
-                11000,
-                new Date(System.currentTimeMillis() - 86400000))); // 1 hari yang lalu
+    // Build aggregated cart lines for display
+    private void rebuildCartLines() {
+        Map<String, CartLine> map = new HashMap<>();
+        for (IceCreamProduct p : cart) {
+            CartLine line = map.get(p.getId());
+            if (line == null) {
+                line = new CartLine(p, 0);
+                map.put(p.getId(), line);
+            }
+            line.quantity += 1;
+        }
+        cartLines.clear();
+        cartLines.addAll(map.values());
+    }
 
-        transactionHistory.add(new Transaction(
-                UUID.randomUUID().toString(),
-                new ArrayList<>(sampleItems.subList(0, 1)),
-                5000,
-                new Date(System.currentTimeMillis() - 172800000))); // 2 hari yang lalu
+    // Aggregated cart line
+    private static class CartLine {
+        final IceCreamProduct product;
+        int quantity;
+        CartLine(IceCreamProduct product, int quantity) {
+            this.product = product;
+            this.quantity = quantity;
+        }
+        @Override public String toString() { return product.getName(); }
+    }
+
+    public void loadDataFromSupabase() {
+        // Muat produk dari Supabase
+        supabaseHelper.loadProducts(new SupabaseHelper.ProductsCallback() {
+            @Override
+            public void onSuccess(List<IceCreamProduct> productsList) {
+                runOnUiThread(() -> {
+                    Log.d("MainActivity", "Products loaded: " + productsList.size());
+
+                    products.clear();
+                    products.addAll(productsList);
+
+                    // Tambahkan log untuk memeriksa produk
+                    for (IceCreamProduct product : products) {
+                        Log.d("MainActivity", "Product: " + product.getName() +
+                                ", ID: " + product.getId() +
+                                ", Price: " + product.getPrice() +
+                                ", Stock: " + product.getStock() +
+                                ", ImageResId: " + product.getImageResId());
+                    }
+
+                    // Perbarui tampilan produk
+                    RecyclerView productsRecyclerView = findViewById(R.id.products_recycler_view);
+                    if (productsRecyclerView != null) {
+                        ProductAdapter adapter = (ProductAdapter) productsRecyclerView.getAdapter();
+                        if (adapter != null) {
+                            Log.d("MainActivity", "Notifying adapter with " + products.size() + " products");
+                            adapter.notifyDataSetChanged();
+
+                            // Tampilkan pesan jika tidak ada produk
+                            if (productsList.isEmpty()) {
+                                Toast.makeText(MainActivity.this, "Tidak ada produk ditemukan",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Log.e("MainActivity", "Adapter is null");
+                        }
+                    } else {
+                        Log.e("MainActivity", "RecyclerView is null");
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Log.e("MainActivity", "Error loading products: " + error);
+                    Toast.makeText(MainActivity.this, "Gagal memuat produk: " + error,
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+
+        // Muat riwayat transaksi dari Supabase
+        supabaseHelper.loadTransactions(new SupabaseHelper.TransactionsCallback() {
+            @Override
+            public void onSuccess(List<Transaction> transactions) {
+                runOnUiThread(() -> {
+                    transactionHistory.clear();
+                    transactionHistory.addAll(transactions);
+
+                    Log.d("MainActivity", "Transactions loaded: " + transactions.size());
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Log.e("MainActivity", "Error loading transactions: " + error);
+                    Toast.makeText(MainActivity.this, "Gagal memuat riwayat: " + error,
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     private void addToCart(IceCreamProduct product) {
         // Cek stok yang tersedia (stok - jumlah di keranjang)
-        int countInCart = 0;
-        for (IceCreamProduct item : cart) {
-            if (item.getId().equals(product.getId())) {
-                countInCart++;
-            }
-        }
+        int countInCart = countInCart(product.getId());
 
         if (product.getStock() > countInCart) {
             cart.add(product);
             total += product.getPrice();
-            totalTextView.setText(String.format("Total: Rp %.0f", total));
+            totalTextView.setText(String.format(Locale.getDefault(), "Total: Rp %.0f", total));
+            rebuildCartLines();
             cartAdapter.notifyDataSetChanged();
         } else {
             Toast.makeText(this, "Stok " + product.getName() + " habis!",
@@ -167,6 +309,21 @@ public class MainActivity extends AppCompatActivity {
                 IceCreamProduct product = findProductById(productId);
                 if (product != null) {
                     product.setStock(product.getStock() - quantity);
+                    // Update produk di Supabase
+                    supabaseHelper.updateProduct(product, new SupabaseHelper.DatabaseCallback() {
+                        @Override
+                        public void onSuccess(String id) {
+                            // Tidak perlu melakukan apa-apa di sini
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() -> {
+                                Toast.makeText(MainActivity.this, "Gagal memperbarui stok: " + error,
+                                        Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    });
                 }
             }
 
@@ -177,15 +334,33 @@ public class MainActivity extends AppCompatActivity {
                     new ArrayList<>(cart),
                     total,
                     new Date());
-            transactionHistory.add(transaction);
+
+            // Simpan transaksi di Supabase
+            supabaseHelper.addTransaction(transaction, new SupabaseHelper.DatabaseCallback() {
+                @Override
+                public void onSuccess(String id) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Transaksi berhasil disimpan", Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Gagal menyimpan transaksi: " + error,
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
 
             // Bersihkan keranjang
             cart.clear();
             total = 0;
             totalTextView.setText("Total: Rp 0");
+            rebuildCartLines();
             cartAdapter.notifyDataSetChanged();
 
-            // Perbarui tampilan produk untuk menampilkan stok terbaru
+            // Perbarui tampilan produk
             RecyclerView productsRecyclerView = findViewById(R.id.products_recycler_view);
             ProductAdapter adapter = (ProductAdapter) productsRecyclerView.getAdapter();
             if (adapter != null) {
@@ -231,6 +406,28 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(intent, 1);
             return true;
         }
+        else if (id == R.id.action_logout) {
+            supabaseHelper.signOut(new SupabaseHelper.AuthCallback() {
+                @Override
+                public void onSuccess() {
+                    runOnUiThread(() -> {
+                        Intent intent = new Intent(MainActivity.this, AuthActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                        finish();
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Gagal logout: " + error,
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
     }
@@ -240,27 +437,15 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == PRODUCT_MANAGEMENT_REQUEST_CODE && resultCode == RESULT_OK) {
-            if (data != null && data.hasExtra("updated_products")) {
-                List<IceCreamProduct> updatedProducts = data.getParcelableArrayListExtra("updated_products");
-                if (updatedProducts != null) {
-                    products.clear();
-                    products.addAll(updatedProducts);
+            // MUAT ULANG DATA DI SINI
+            loadDataFromSupabase();
 
-                    // Perbarui tampilan produk
-                    RecyclerView productsRecyclerView = findViewById(R.id.products_recycler_view);
-                    ProductAdapter adapter = (ProductAdapter) productsRecyclerView.getAdapter();
-                    if (adapter != null) {
-                        adapter.notifyDataSetChanged();
-                    }
-
-                    Toast.makeText(this, "Daftar produk berhasil diperbarui",
-                            Toast.LENGTH_SHORT).show();
-                }
-            }
+            Toast.makeText(this, "Daftar produk berhasil diperbarui",
+                    Toast.LENGTH_SHORT).show();
         }
         else if (requestCode == 1 && resultCode == RESULT_OK) {
             // Riwayat transaksi telah dihapus, perbarui data
-            loadTransactionHistory();
+            loadDataFromSupabase();
         }
     }
 }
