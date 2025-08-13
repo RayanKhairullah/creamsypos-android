@@ -52,9 +52,6 @@ public class ImageSelectionDialog extends Dialog {
 
     private List<Integer> getImageResources() {
         List<Integer> imageResources = new ArrayList<>();
-        imageResources.add(R.drawable.ic_vanilla);
-        imageResources.add(R.drawable.ic_chocolate);
-        imageResources.add(R.drawable.ic_strawberry);
         imageResources.add(R.drawable.ic_default_product);
         return imageResources;
     }

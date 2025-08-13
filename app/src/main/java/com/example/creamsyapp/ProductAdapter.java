@@ -12,7 +12,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
+import com.bumptech.glide.Glide;
+
 public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductViewHolder> {
+
     private List<IceCreamProduct> products;
     private OnProductAddListener listener;
 
@@ -43,19 +46,24 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             holder.tvPrice.setText(String.format("Rp %.0f", product.getPrice()));
             holder.tvStock.setText(String.format("Stok: %d", product.getStock()));
 
-            // Perbaiki masalah image resource ID
-            try {
-                // Cek apakah imageResId valid
-                if (product.getImageResId() > 0) {
-                    holder.ivProduct.setImageResource(product.getImageResId());
-                } else {
-                    // Gunakan gambar default jika tidak valid
+            // Load image from URL if available, else fallback to resource/default
+            String url = product.getImageUrl();
+            if (url != null && !url.isEmpty()) {
+                Glide.with(holder.itemView.getContext())
+                        .load(url)
+                        .placeholder(R.drawable.ic_default_product)
+                        .error(R.drawable.ic_default_product)
+                        .into(holder.ivProduct);
+            } else {
+                try {
+                    if (product.getImageResId() > 0) {
+                        holder.ivProduct.setImageResource(product.getImageResId());
+                    } else {
+                        holder.ivProduct.setImageResource(R.drawable.ic_default_product);
+                    }
+                } catch (Exception e) {
                     holder.ivProduct.setImageResource(R.drawable.ic_default_product);
                 }
-            } catch (Exception e) {
-                // Jika terjadi error, gunakan gambar default
-                holder.ivProduct.setImageResource(R.drawable.ic_default_product);
-                e.printStackTrace();
             }
 
             holder.btnAdd.setOnClickListener(v -> {

@@ -14,6 +14,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
@@ -24,9 +26,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class SupabaseHelper {
     private static final String TAG = "SupabaseHelper";
-    // PERBAIKAN: URL tanpa spasi ekstra
     private static final String API_URL = "https://hvhlvpwltxrimitwoivd.supabase.co";
     private static final String ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2aGx2cHdsdHhyaW1pdHdvaXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNjYwMDYsImV4cCI6MjA3MDY0MjAwNn0.zAzvigSreIz01wNXPk4mYxFCuhCmU3tkykNTfnyX6H4";
+    private static final String STORAGE_BUCKET = "product-images";
 
     private Retrofit retrofit;
     private SupabaseService service;
@@ -113,6 +115,54 @@ public class SupabaseHelper {
                 callback.onError("Network error: " + t.getMessage());
             }
         });
+    }
+
+    // Upload image bytes to Supabase Storage and return the public URL (for Public bucket)
+    public void uploadImageToStorage(byte[] data, String fileName, SimpleCallback callback) {
+        if (!isUserSignedIn()) {
+            callback.onError("User not signed in");
+            return;
+        }
+        if (data == null || data.length == 0) {
+            callback.onError("No data");
+            return;
+        }
+        try {
+            String safeFile = fileName != null && !fileName.isEmpty() ? fileName : (System.currentTimeMillis()+".jpg");
+            String objectPath = userId + "/" + safeFile; // per-user folder
+            RequestBody body = RequestBody.create(MediaType.parse("image/jpeg"), data);
+            retrofit2.Call<Void> call = service.uploadObject(
+                    ANON_KEY,
+                    sessionToken,
+                    "image/jpeg",
+                    STORAGE_BUCKET,
+                    objectPath,
+                    body
+            );
+            call.enqueue(new retrofit2.Callback<Void>() {
+                @Override
+                public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {
+                    if (response.isSuccessful()) {
+                        String publicUrl = API_URL + "/storage/v1/object/public/" + STORAGE_BUCKET + "/" + objectPath;
+                        callback.onSuccess(publicUrl);
+                    } else {
+                        try {
+                            String err = response.errorBody() != null ? response.errorBody().string() : "Unknown error";
+                            callback.onError("Upload failed: " + err);
+                        } catch (IOException e) {
+                            callback.onError("Upload failed: " + e.getMessage());
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(retrofit2.Call<Void> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError(e.getMessage());
+        }
     }
 
     // Ambil item transaksi untuk detail dialog
@@ -317,7 +367,9 @@ public class SupabaseHelper {
         productData.put("name", product.getName());
         productData.put("price", product.getPrice());
         productData.put("stock", product.getStock());
-        productData.put("image_res_id", product.getImageResId());
+        if (product.getImageUrl() != null && !product.getImageUrl().isEmpty()) {
+            productData.put("image_url", product.getImageUrl());
+        }
         productData.put("user_id", userId);
 
         Call<Void> call = service.addProduct(ANON_KEY, sessionToken, "return=minimal", productData);
@@ -353,7 +405,9 @@ public class SupabaseHelper {
         productData.put("name", product.getName());
         productData.put("price", product.getPrice());
         productData.put("stock", product.getStock());
-        productData.put("image_res_id", product.getImageResId());
+        if (product.getImageUrl() != null && !product.getImageUrl().isEmpty()) {
+            productData.put("image_url", product.getImageUrl());
+        }
 
         // PERBAIKAN: Gunakan query parameter untuk id
         Call<Void> call = service.updateProduct(ANON_KEY, sessionToken, "return=minimal", "eq." + product.getId(), productData);
@@ -419,14 +473,14 @@ public class SupabaseHelper {
 
         // PERBAIKAN: Tambahkan log untuk parameter query
         Log.d(TAG, "Params: user_id=eq." + userId
-                + ", select=id,name,price,stock,image_res_id"
+                + ", select=id,name,price,stock,image_url"
                 + ", order=id.desc");
 
         Call<List<IceCreamProduct>> call = service.getProducts(
                 ANON_KEY,
                 sessionToken,
                 "eq." + userId,
-                "id,name,price,stock,image_res_id",
+                "id,name,price,stock,image_url",
                 "id.desc"
         );
 
@@ -606,6 +660,12 @@ public class SupabaseHelper {
 
     public interface ItemsCallback {
         void onSuccess(List<String> items);
+        void onError(String error);
+    }
+
+    // Simple callback for one-shot operations like image upload
+    public interface SimpleCallback {
+        void onSuccess(String result);
         void onError(String error);
     }
 

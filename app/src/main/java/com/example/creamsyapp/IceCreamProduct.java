@@ -31,12 +31,20 @@ public class IceCreamProduct implements Parcelable {
     @JsonAdapter(IntegerTypeAdapter.class)
     private int imageResId;
 
+    @SerializedName("image_url")
+    private String imageUrl; // optional URL when using Supabase Storage
+
     public IceCreamProduct(String id, String name, double price, int stock, int imageResId) {
         this.id = id;
         this.name = name;
         this.price = price;
         this.stock = stock;
         this.imageResId = imageResId;
+    }
+
+    public IceCreamProduct(String id, String name, double price, int stock, int imageResId, String imageUrl) {
+        this(id, name, price, stock, imageResId);
+        this.imageUrl = imageUrl;
     }
 
     // Constructor default untuk Gson
@@ -49,6 +57,7 @@ public class IceCreamProduct implements Parcelable {
         price = in.readDouble();
         stock = in.readInt();
         imageResId = in.readInt();
+        imageUrl = in.readString();
     }
 
     public static final Creator<IceCreamProduct> CREATOR = new Creator<IceCreamProduct>() {
@@ -79,6 +88,9 @@ public class IceCreamProduct implements Parcelable {
     public int getImageResId() { return imageResId; }
     public void setImageResId(int imageResId) { this.imageResId = imageResId; }
 
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
     @Override
     public int describeContents() {
         return 0;
@@ -91,6 +103,7 @@ public class IceCreamProduct implements Parcelable {
         dest.writeDouble(price);
         dest.writeInt(stock);
         dest.writeInt(imageResId);
+        dest.writeString(imageUrl);
     }
 
     // Adapter untuk parsing double dari JSON

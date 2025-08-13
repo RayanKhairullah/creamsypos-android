@@ -6,6 +6,7 @@ import com.example.creamsyapp.Transaction;
 import java.util.List;
 import java.util.Map;
 
+import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
@@ -14,6 +15,7 @@ import retrofit2.http.Header;
 import retrofit2.http.PATCH;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
+import retrofit2.http.Path;
 import retrofit2.http.Query;
 
 public interface SupabaseService {
@@ -113,6 +115,17 @@ public interface SupabaseService {
             @Header("Authorization") String authorization,
             @Query("id") String idFilter,
             @Query("user_id") String userIdFilter
+    );
+
+    // Storage: upload object (bucket should be public for direct access)
+    @PUT("storage/v1/object/{bucket}/{path}")
+    Call<Void> uploadObject(
+            @Header("apikey") String apiKey,
+            @Header("Authorization") String authorization,
+            @Header("Content-Type") String contentType,
+            @Path("bucket") String bucket,
+            @Path(value = "path", encoded = true) String objectPath,
+            @Body RequestBody body
     );
 
     // Inner classes untuk autentikasi

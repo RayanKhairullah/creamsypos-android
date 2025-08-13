@@ -1,6 +1,9 @@
 package com.example.creamsyapp;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -10,6 +13,8 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 
 import java.util.UUID;
 
@@ -20,6 +25,16 @@ public class AddProductActivity extends AppCompatActivity {
     private boolean isEditMode = false;
     private IceCreamProduct editProduct;
     private int selectedImageResId = R.drawable.ic_default_product;
+    private byte[] selectedImageBytes = null;
+    private String uploadedImageUrl = null;
+    private String selectedFileName = null;
+
+    private final ActivityResultLauncher<String> pickImageLauncher =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+                if (uri != null) {
+                    handleImagePicked(uri);
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,24 +63,27 @@ public class AddProductActivity extends AppCompatActivity {
             ivProductPreview.setImageResource(selectedImageResId);
         }
 
-        // Setup tombol pilih gambar
-        btnSelectImage.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showImageSelectionDialog();
-            }
-        });
+        // Setup tombol pilih gambar (Gallery)
+        btnSelectImage.setOnClickListener(v -> pickImageLauncher.launch("image/*"));
     }
 
-    private void showImageSelectionDialog() {
-        ImageSelectionDialog dialog = new ImageSelectionDialog(this, new ImageSelectionDialog.OnImageSelectedListener() {
-            @Override
-            public void onImageSelected(int imageResId) {
-                selectedImageResId = imageResId;
-                ivProductPreview.setImageResource(imageResId);
+    private void handleImagePicked(Uri uri) {
+        try {
+            // Load and compress to JPEG to keep size low
+            Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(uri));
+            if (bitmap != null) {
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, baos);
+                selectedImageBytes = baos.toByteArray();
+                ivProductPreview.setImageBitmap(bitmap);
+                selectedFileName = "product_" + System.currentTimeMillis() + ".jpg";
+                uploadedImageUrl = null; // reset, will upload on save
+            } else {
+                Toast.makeText(this, "Gagal memuat gambar", Toast.LENGTH_SHORT).show();
             }
-        });
-        dialog.show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Gagal memilih gambar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     public void saveProduct(View view) {
@@ -92,17 +110,42 @@ public class AddProductActivity extends AppCompatActivity {
         double price = Double.parseDouble(priceStr);
         int stock = Integer.parseInt(stockStr);
 
+        // Jika ada gambar yang dipilih dari perangkat, upload dulu ke Supabase Storage
+        if (selectedImageBytes != null && uploadedImageUrl == null) {
+            btnSave.setEnabled(false);
+            SupabaseHelper.getInstance().uploadImageToStorage(selectedImageBytes, selectedFileName, new SupabaseHelper.SimpleCallback() {
+                @Override
+                public void onSuccess(String url) {
+                    runOnUiThread(() -> {
+                        uploadedImageUrl = url;
+                        proceedSaveProduct(name, price, stock);
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        btnSave.setEnabled(true);
+                        Toast.makeText(AddProductActivity.this, "Upload gambar gagal: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } else {
+            proceedSaveProduct(name, price, stock);
+        }
+    }
+
+    private void proceedSaveProduct(String name, double price, int stock) {
         // Buat objek produk
         IceCreamProduct product;
+        String imageUrl = uploadedImageUrl;
         if (isEditMode) {
-            // Update produk yang sudah ada
             product = new IceCreamProduct(
-                    editProduct.getId(), name, price, stock, selectedImageResId);
+                    editProduct.getId(), name, price, stock, selectedImageResId, imageUrl);
         } else {
-            // Buat produk baru dengan ID UUID
             String productId = UUID.randomUUID().toString();
             product = new IceCreamProduct(
-                    productId, name, price, stock, selectedImageResId);
+                    productId, name, price, stock, selectedImageResId, imageUrl);
         }
 
         // Kembalikan produk ke activity pemanggil

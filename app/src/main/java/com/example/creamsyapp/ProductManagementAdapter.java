@@ -11,6 +11,8 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.bumptech.glide.Glide;
+
 public class ProductManagementAdapter extends ArrayAdapter<IceCreamProduct> {
     private Context context;
     private List<IceCreamProduct> products;
@@ -42,7 +44,25 @@ public class ProductManagementAdapter extends ArrayAdapter<IceCreamProduct> {
         tvName.setText(product.getName());
         tvPrice.setText(String.format("Rp %.0f", product.getPrice()));
         tvStock.setText(String.format("Stok: %d", product.getStock()));
-        ivProduct.setImageResource(product.getImageResId());
+
+        String url = product.getImageUrl();
+        if (url != null && !url.isEmpty()) {
+            Glide.with(context)
+                    .load(url)
+                    .placeholder(R.drawable.ic_default_product)
+                    .error(R.drawable.ic_default_product)
+                    .into(ivProduct);
+        } else {
+            try {
+                if (product.getImageResId() > 0) {
+                    ivProduct.setImageResource(product.getImageResId());
+                } else {
+                    ivProduct.setImageResource(R.drawable.ic_default_product);
+                }
+            } catch (Exception e) {
+                ivProduct.setImageResource(R.drawable.ic_default_product);
+            }
+        }
 
         // Tampilkan indikator untuk mode hapus
         tvSelect.setVisibility(isDeletingMode ? View.VISIBLE : View.GONE);
