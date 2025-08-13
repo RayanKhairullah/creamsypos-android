@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">CreamsyApp</string>
+    <string name="vanilla">Vanilla</string>
+    <string name="chocolate">Chocolate</string>
+    <string name="strawberry">Strawberry</string>
+    <string name="add_product">Tambah Produk</string>
+    <string name="transaction_history">Riwayat Transaksi</string>
+</resources>
