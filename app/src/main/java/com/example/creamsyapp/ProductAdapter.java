@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -38,6 +39,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         holder.tvName.setText(product.getName());
         holder.tvPrice.setText(String.format("Rp %.0f", product.getPrice()));
         holder.tvStock.setText(String.format("Stok: %d", product.getStock()));
+        holder.ivProduct.setImageResource(product.getImageResId());
 
         holder.btnAdd.setOnClickListener(v -> {
             if (listener != null) {
@@ -54,6 +56,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     static class ProductViewHolder extends RecyclerView.ViewHolder {
         TextView tvName, tvPrice, tvStock;
         Button btnAdd;
+        ImageView ivProduct;
 
         public ProductViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -61,6 +64,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             tvPrice = itemView.findViewById(R.id.tv_product_price);
             tvStock = itemView.findViewById(R.id.tv_product_stock);
             btnAdd = itemView.findViewById(R.id.btn_add_to_cart);
+            ivProduct = itemView.findViewById(R.id.iv_product);
         }
     }
 }

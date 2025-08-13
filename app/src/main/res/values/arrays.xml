@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="product_images">
+        <item>@drawable/ic_vanilla</item>
+        <item>@drawable/ic_chocolate</item>
+        <item>@drawable/ic_strawberry</item>
+        <item>@drawable/ic_default_product</item>
+    </array>
+</resources>

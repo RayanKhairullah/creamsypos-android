@@ -8,12 +8,14 @@ public class IceCreamProduct implements Parcelable {
     private String name;
     private double price;
     private int stock;
+    private int imageResId; // Menyimpan resource ID gambar
 
-    public IceCreamProduct(String id, String name, double price, int stock) {
+    public IceCreamProduct(String id, String name, double price, int stock, int imageResId) {
         this.id = id;
         this.name = name;
         this.price = price;
         this.stock = stock;
+        this.imageResId = imageResId;
     }
 
     protected IceCreamProduct(Parcel in) {
@@ -21,6 +23,7 @@ public class IceCreamProduct implements Parcelable {
         name = in.readString();
         price = in.readDouble();
         stock = in.readInt();
+        imageResId = in.readInt();
     }
 
     public static final Creator<IceCreamProduct> CREATOR = new Creator<IceCreamProduct>() {
@@ -41,6 +44,8 @@ public class IceCreamProduct implements Parcelable {
     public double getPrice() { return price; }
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }
+    public int getImageResId() { return imageResId; }
+    public void setImageResId(int imageResId) { this.imageResId = imageResId; }
 
     @Override
     public int describeContents() {
@@ -53,5 +58,6 @@ public class IceCreamProduct implements Parcelable {
         dest.writeString(name);
         dest.writeDouble(price);
         dest.writeInt(stock);
+        dest.writeInt(imageResId);
     }
 }

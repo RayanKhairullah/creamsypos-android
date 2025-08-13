@@ -83,13 +83,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initProducts() {
-        // Produk default dengan stok
+        // Produk default dengan stok dan gambar
         products.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Vanilla", 5000, 10));
+                UUID.randomUUID().toString(), "Vanilla", 5000, 10, R.drawable.ic_vanilla));
         products.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Chocolate", 6000, 10));
+                UUID.randomUUID().toString(), "Chocolate", 6000, 10, R.drawable.ic_chocolate));
         products.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Strawberry", 5500, 10));
+                UUID.randomUUID().toString(), "Strawberry", 5500, 10, R.drawable.ic_strawberry));
     }
 
     private void loadTransactionHistory() {
@@ -97,9 +97,9 @@ public class MainActivity extends AppCompatActivity {
         // Di sini kita hanya membuat beberapa transaksi contoh
         List<IceCreamProduct> sampleItems = new ArrayList<>();
         sampleItems.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Vanilla", 5000, 10));
+                UUID.randomUUID().toString(), "Vanilla", 5000, 10, R.drawable.ic_vanilla));
         sampleItems.add(new IceCreamProduct(
-                UUID.randomUUID().toString(), "Chocolate", 6000, 10));
+                UUID.randomUUID().toString(), "Chocolate", 6000, 10, R.drawable.ic_chocolate));
 
         transactionHistory.add(new Transaction(
                 UUID.randomUUID().toString(),

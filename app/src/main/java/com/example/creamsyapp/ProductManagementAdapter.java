@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -13,7 +14,6 @@ import java.util.List;
 public class ProductManagementAdapter extends ArrayAdapter<IceCreamProduct> {
     private Context context;
     private List<IceCreamProduct> products;
-    private boolean isEditingMode;
     private boolean isDeletingMode;
     private List<IceCreamProduct> selectedProducts;
 
@@ -21,7 +21,6 @@ public class ProductManagementAdapter extends ArrayAdapter<IceCreamProduct> {
         super(context, 0, products);
         this.context = context;
         this.products = products;
-        this.isEditingMode = false;
         this.isDeletingMode = false;
         this.selectedProducts = new ArrayList<>();
     }
@@ -38,21 +37,18 @@ public class ProductManagementAdapter extends ArrayAdapter<IceCreamProduct> {
         TextView tvPrice = convertView.findViewById(R.id.tv_product_price);
         TextView tvStock = convertView.findViewById(R.id.tv_product_stock);
         TextView tvSelect = convertView.findViewById(R.id.tv_select);
+        ImageView ivProduct = convertView.findViewById(R.id.iv_product);
 
         tvName.setText(product.getName());
         tvPrice.setText(String.format("Rp %.0f", product.getPrice()));
         tvStock.setText(String.format("Stok: %d", product.getStock()));
+        ivProduct.setImageResource(product.getImageResId());
 
         // Tampilkan indikator untuk mode hapus
         tvSelect.setVisibility(isDeletingMode ? View.VISIBLE : View.GONE);
         tvSelect.setText(selectedProducts.contains(product) ? "✓" : "○");
 
         return convertView;
-    }
-
-    public void setEditingMode(boolean editingMode) {
-        this.isEditingMode = editingMode;
-        notifyDataSetChanged();
     }
 
     public void setDeletingMode(boolean deletingMode) {
