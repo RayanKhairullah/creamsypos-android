@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.product;
 
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -6,7 +6,6 @@ import android.os.Parcelable;
 import com.google.gson.annotations.SerializedName;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -21,13 +20,23 @@ public class Transaction implements Parcelable {
     @SerializedName("total")
     private double total;
 
+    // Jumlah tunai yang dibayar
+    @SerializedName("amount_paid")
+    private double amountPaid;
+
+    // Kembalian
+    @SerializedName("change")
+    private double change;
+
     @SerializedName("timestamp")
     private Date timestamp;
 
-    public Transaction(String id, List<IceCreamProduct> items, double total, Date timestamp) {
+    public Transaction(String id, List<IceCreamProduct> items, double total, double amountPaid, double change, Date timestamp) {
         this.id = id;
         this.items = items;
         this.total = total;
+        this.amountPaid = amountPaid;
+        this.change = change;
         this.timestamp = timestamp;
     }
 
@@ -35,6 +44,8 @@ public class Transaction implements Parcelable {
         id = in.readString();
         items = in.createTypedArrayList(IceCreamProduct.CREATOR);
         total = in.readDouble();
+        amountPaid = in.readDouble();
+        change = in.readDouble();
         long time = in.readLong();
         timestamp = time == -1 ? null : new Date(time);
     }
@@ -55,6 +66,8 @@ public class Transaction implements Parcelable {
     public String getId() { return id; }
     public List<IceCreamProduct> getItems() { return items; }
     public double getTotal() { return total; }
+    public double getAmountPaid() { return amountPaid; }
+    public double getChange() { return change; }
     public Date getTimestamp() { return timestamp; }
 
     public String getFormattedDate() {
@@ -72,6 +85,8 @@ public class Transaction implements Parcelable {
         dest.writeString(id);
         dest.writeTypedList(items);
         dest.writeDouble(total);
+        dest.writeDouble(amountPaid);
+        dest.writeDouble(change);
         dest.writeLong(timestamp != null ? timestamp.getTime() : -1);
     }
 }

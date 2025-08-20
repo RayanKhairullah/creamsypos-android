@@ -1,17 +1,19 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.activity;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import com.example.creamsyapp.R;
+import com.example.creamsyapp.supabase.SupabaseHelper;
+import com.example.creamsyapp.product.Transaction;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -172,12 +174,16 @@ public class HistoryActivity extends AppCompatActivity {
 
         TextView tvDate = (TextView) dialogView.findViewById(R.id.tv_date);
         TextView tvTotal = (TextView) dialogView.findViewById(R.id.tv_total);
+        TextView tvAmountPaid = (TextView) dialogView.findViewById(R.id.tv_amount_paid);
+        TextView tvChange = (TextView) dialogView.findViewById(R.id.tv_change);
         ListView lvItems = dialogView.findViewById(R.id.lv_items);
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
         Date ts = transaction.getTimestamp();
         tvDate.setText(ts != null ? sdf.format(ts) : "-");
         tvTotal.setText(String.format("Total: Rp %.0f", transaction.getTotal()));
+        tvAmountPaid.setText(String.format(Locale.getDefault(), "Rp %.0f", transaction.getAmountPaid()));
+        tvChange.setText(String.format(Locale.getDefault(), "Rp %.0f", transaction.getChange()));
 
         // Tampilkan item dalam transaksi dengan memuat dari database
         ArrayList<String> displayItems = new ArrayList<>();
@@ -213,7 +219,15 @@ public class HistoryActivity extends AppCompatActivity {
         });
 
         builder.setPositiveButton("Tutup", null);
-        builder.show();
+
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (positive != null) {
+                positive.setTextColor(ContextCompat.getColor(HistoryActivity.this, R.color.on_surface));
+            }
+        });
+        dialog.show();
     }
 
     private void showDeleteConfirmationDialog() {

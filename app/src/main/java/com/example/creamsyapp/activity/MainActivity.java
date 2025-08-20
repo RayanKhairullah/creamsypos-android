@@ -1,9 +1,10 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.activity;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.core.content.ContextCompat;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -16,8 +17,16 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.text.InputType;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 
-import java.text.SimpleDateFormat;
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.R;
+import com.example.creamsyapp.supabase.SupabaseHelper;
+import com.example.creamsyapp.product.Transaction;
+import com.example.creamsyapp.adapter.ProductAdapter;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -302,72 +311,117 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (sufficientStock) {
-            // Kurangi stok
-            for (Map.Entry<String, Integer> entry : productCount.entrySet()) {
-                String productId = entry.getKey();
-                int quantity = entry.getValue();
-                IceCreamProduct product = findProductById(productId);
-                if (product != null) {
-                    product.setStock(product.getStock() - quantity);
-                    // Update produk di Supabase
-                    supabaseHelper.updateProduct(product, new SupabaseHelper.DatabaseCallback() {
+            // Tampilkan dialog input pembayaran
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Pembayaran");
+
+            LinearLayout layout = new LinearLayout(this);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            int pad = (int) (16 * getResources().getDisplayMetrics().density);
+            layout.setPadding(pad, pad, pad, pad);
+
+            TextView tvTotal = new TextView(this);
+            tvTotal.setText(String.format(Locale.getDefault(), "Total: Rp %.0f", total));
+            tvTotal.setPadding(0, 0, 0, pad / 2);
+            layout.addView(tvTotal);
+
+            EditText etPaid = new EditText(this);
+            etPaid.setHint("Tunai diterima");
+            etPaid.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+            layout.addView(etPaid);
+
+            builder.setView(layout);
+            builder.setNegativeButton("Batal", null);
+            builder.setPositiveButton("Bayar", null);
+
+            AlertDialog dialog = builder.create();
+            dialog.setOnShowListener(d -> {
+                // Set button text colors for dark/light mode
+                Button btnPositive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                Button btnNegative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+                int onSurface = ContextCompat.getColor(MainActivity.this, R.color.on_surface);
+                if (btnPositive != null) btnPositive.setTextColor(onSurface);
+                if (btnNegative != null) btnNegative.setTextColor(onSurface);
+
+                btnPositive.setOnClickListener(v -> {
+                    String paidStr = etPaid.getText().toString().trim();
+                    if (paidStr.isEmpty()) {
+                        etPaid.setError("Masukkan nominal");
+                        return;
+                    }
+                    double paid;
+                    try {
+                        paid = Double.parseDouble(paidStr);
+                    } catch (NumberFormatException e) {
+                        etPaid.setError("Nominal tidak valid");
+                        return;
+                    }
+                    if (paid < total) {
+                        etPaid.setError("Tunai kurang dari total");
+                        return;
+                    }
+
+                    double change = paid - total;
+
+                    // Kurangi stok dan update ke Supabase
+                    for (Map.Entry<String, Integer> entry : productCount.entrySet()) {
+                        String productId = entry.getKey();
+                        int quantity = entry.getValue();
+                        IceCreamProduct product = findProductById(productId);
+                        if (product != null) {
+                            product.setStock(product.getStock() - quantity);
+                            supabaseHelper.updateProduct(product, new SupabaseHelper.DatabaseCallback() {
+                                @Override
+                                public void onSuccess(String id) { /* no-op */ }
+
+                                @Override
+                                public void onError(String error) {
+                                    runOnUiThread(() ->
+                                            Toast.makeText(MainActivity.this, "Gagal memperbarui stok: " + error, Toast.LENGTH_SHORT).show());
+                                }
+                            });
+                        }
+                    }
+
+                    // Simpan transaksi
+                    String transactionId = UUID.randomUUID().toString();
+                    Transaction transaction = new Transaction(
+                            transactionId,
+                            new ArrayList<>(cart),
+                            total,
+                            paid,
+                            change,
+                            new Date());
+
+                    supabaseHelper.addTransaction(transaction, new SupabaseHelper.DatabaseCallback() {
                         @Override
                         public void onSuccess(String id) {
-                            // Tidak perlu melakukan apa-apa di sini
+                            runOnUiThread(() ->
+                                    Toast.makeText(MainActivity.this, String.format(Locale.getDefault(), "Transaksi berhasil. Kembalian: Rp %.0f", change), Toast.LENGTH_LONG).show());
                         }
 
                         @Override
                         public void onError(String error) {
-                            runOnUiThread(() -> {
-                                Toast.makeText(MainActivity.this, "Gagal memperbarui stok: " + error,
-                                        Toast.LENGTH_SHORT).show();
-                            });
+                            runOnUiThread(() ->
+                                    Toast.makeText(MainActivity.this, "Gagal menyimpan transaksi: " + error, Toast.LENGTH_SHORT).show());
                         }
                     });
-                }
-            }
 
-            // Simpan transaksi
-            String transactionId = UUID.randomUUID().toString();
-            Transaction transaction = new Transaction(
-                    transactionId,
-                    new ArrayList<>(cart),
-                    total,
-                    new Date());
+                    // Bersihkan keranjang dan perbarui UI
+                    cart.clear();
+                    total = 0;
+                    totalTextView.setText("Total: Rp 0");
+                    rebuildCartLines();
+                    cartAdapter.notifyDataSetChanged();
 
-            // Simpan transaksi di Supabase
-            supabaseHelper.addTransaction(transaction, new SupabaseHelper.DatabaseCallback() {
-                @Override
-                public void onSuccess(String id) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "Transaksi berhasil disimpan", Toast.LENGTH_SHORT).show();
-                    });
-                }
+                    RecyclerView productsRecyclerView = findViewById(R.id.products_recycler_view);
+                    ProductAdapter adapter = (ProductAdapter) productsRecyclerView.getAdapter();
+                    if (adapter != null) adapter.notifyDataSetChanged();
 
-                @Override
-                public void onError(String error) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this, "Gagal menyimpan transaksi: " + error,
-                                Toast.LENGTH_SHORT).show();
-                    });
-                }
+                    dialog.dismiss();
+                });
             });
-
-            // Bersihkan keranjang
-            cart.clear();
-            total = 0;
-            totalTextView.setText("Total: Rp 0");
-            rebuildCartLines();
-            cartAdapter.notifyDataSetChanged();
-
-            // Perbarui tampilan produk
-            RecyclerView productsRecyclerView = findViewById(R.id.products_recycler_view);
-            ProductAdapter adapter = (ProductAdapter) productsRecyclerView.getAdapter();
-            if (adapter != null) {
-                adapter.notifyDataSetChanged();
-            }
-
-            Toast.makeText(this, "Transaksi berhasil!", Toast.LENGTH_SHORT).show();
+            dialog.show();
         } else {
             Toast.makeText(this, "Gagal checkout: stok tidak mencukupi",
                     Toast.LENGTH_SHORT).show();

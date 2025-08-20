@@ -30,7 +30,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 }
-
 dependencies {
     // Tambahkan Retrofit untuk REST API
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

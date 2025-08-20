@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.product;
 
 import android.os.Parcel;
 import android.os.Parcelable;

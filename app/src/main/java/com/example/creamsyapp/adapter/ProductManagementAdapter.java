@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.adapter;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.bumptech.glide.Glide;
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.R;
 
 public class ProductManagementAdapter extends ArrayAdapter<IceCreamProduct> {
     private Context context;

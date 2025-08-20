@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.adapter;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 import com.bumptech.glide.Glide;
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.R;
 
 public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductViewHolder> {
 

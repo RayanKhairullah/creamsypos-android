@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -11,6 +11,11 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.R;
+import com.example.creamsyapp.supabase.SupabaseHelper;
+import com.example.creamsyapp.adapter.ProductManagementAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -88,6 +93,10 @@ public class ProductManagementActivity extends AppCompatActivity {
                 selectedProducts.clear();
                 productAdapter.setDeletingMode(false);
                 productAdapter.notifyDataSetChanged();
+                return true;
+            } else {
+                // Selesai dari layar manajemen produk
+                finish();
                 return true;
             }
         }

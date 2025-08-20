@@ -1,9 +1,8 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.product;
 
 import android.app.Dialog;
 import android.content.Context;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -12,6 +11,8 @@ import android.widget.GridView;
 import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+
+import com.example.creamsyapp.R;
 
 import java.util.ArrayList;
 import java.util.List;

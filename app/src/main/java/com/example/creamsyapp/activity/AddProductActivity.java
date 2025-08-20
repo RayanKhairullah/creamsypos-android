@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.activity;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -15,6 +15,10 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.R;
+import com.example.creamsyapp.supabase.SupabaseHelper;
 
 import java.util.UUID;
 

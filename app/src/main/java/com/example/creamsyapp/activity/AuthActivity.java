@@ -1,4 +1,4 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -10,6 +10,9 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.creamsyapp.R;
+import com.example.creamsyapp.supabase.SupabaseHelper;
 
 public class AuthActivity extends AppCompatActivity {
     private EditText etEmail, etPassword;

@@ -1,7 +1,7 @@
-package com.example.creamsyapp.api;
+package com.example.creamsyapp.supabase.api;
 
-import com.example.creamsyapp.IceCreamProduct;
-import com.example.creamsyapp.Transaction;
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.product.Transaction;
 
 import java.util.List;
 import java.util.Map;

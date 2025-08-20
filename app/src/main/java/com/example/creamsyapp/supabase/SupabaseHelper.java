@@ -1,10 +1,12 @@
-package com.example.creamsyapp;
+package com.example.creamsyapp.supabase;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
-import com.example.creamsyapp.api.SupabaseService;
+import com.example.creamsyapp.supabase.api.SupabaseService;
+import com.example.creamsyapp.product.IceCreamProduct;
+import com.example.creamsyapp.product.Transaction;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,8 +28,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class SupabaseHelper {
     private static final String TAG = "SupabaseHelper";
-    private static final String API_URL = "https://hvhlvpwltxrimitwoivd.supabase.co";
-    private static final String ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2aGx2cHdsdHhyaW1pdHdvaXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNjYwMDYsImV4cCI6MjA3MDY0MjAwNn0.zAzvigSreIz01wNXPk4mYxFCuhCmU3tkykNTfnyX6H4";
+    private static final String API_URL = "your-project-url";
+    private static final String ANON_KEY = "your-anon-key";
     private static final String STORAGE_BUCKET = "product-images";
 
     private Retrofit retrofit;
@@ -528,6 +530,9 @@ public class SupabaseHelper {
 
         Map<String, Object> transactionData = new HashMap<>();
         transactionData.put("total", transaction.getTotal());
+        // kirim amount_paid & change jika kolom tersedia di DB
+        transactionData.put("amount_paid", transaction.getAmountPaid());
+        transactionData.put("change", transaction.getChange());
         transactionData.put("user_id", userId);
 
         Call<Transaction> call = service.addTransaction(ANON_KEY, sessionToken, "return=representation", "application/vnd.pgrst.object+json", transactionData);
@@ -611,7 +616,7 @@ public class SupabaseHelper {
                 ANON_KEY,
                 sessionToken,
                 "eq." + userId,
-                "id,total,timestamp",
+                "id,total,amount_paid,change,timestamp",
                 "timestamp.desc"
         );
 
