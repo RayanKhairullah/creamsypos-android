@@ -28,8 +28,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class SupabaseHelper {
     private static final String TAG = "SupabaseHelper";
-    private static final String API_URL = "your-project-url";
-    private static final String ANON_KEY = "your-anon-key";
+    private static final String API_URL = "https://hvhlvpwltxrimitwoivd.supabase.co";
+    private static final String ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2aGx2cHdsdHhyaW1pdHdvaXZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNjYwMDYsImV4cCI6MjA3MDY0MjAwNn0.zAzvigSreIz01wNXPk4mYxFCuhCmU3tkykNTfnyX6H4";
     private static final String STORAGE_BUCKET = "product-images";
 
     private Retrofit retrofit;

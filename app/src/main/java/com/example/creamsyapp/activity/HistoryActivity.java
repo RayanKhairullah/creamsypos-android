@@ -4,12 +4,15 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.creamsyapp.R;
 import com.example.creamsyapp.supabase.SupabaseHelper;
@@ -96,6 +99,12 @@ public class HistoryActivity extends AppCompatActivity {
             }
         });
 
+        // Setup tombol Kirim ke WA
+        Button btnSendWa = findViewById(R.id.btn_send_wa);
+        if (btnSendWa != null) {
+            btnSendWa.setOnClickListener(v -> sendHistoryToWhatsApp());
+        }
+
         // Set initial UI state
         updateDeleteUI();
 
@@ -124,6 +133,61 @@ public class HistoryActivity extends AppCompatActivity {
         super.onResume();
         // Pastikan data terbaru saat kembali ke layar ini
         refreshTransactions();
+    }
+
+    private void sendHistoryToWhatsApp() {
+        if (transactionHistory == null || transactionHistory.isEmpty()) {
+            Toast.makeText(this, "Tidak ada riwayat transaksi", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String message = buildHistoryMessage(transactionHistory);
+
+        // Intent umum
+        Intent sendIntent = new Intent(Intent.ACTION_SEND);
+        sendIntent.setType("text/plain");
+        sendIntent.putExtra(Intent.EXTRA_TEXT, message);
+
+        // Coba WhatsApp reguler
+        Intent waIntent = new Intent(sendIntent);
+        waIntent.setPackage("com.whatsapp");
+        try {
+            startActivity(waIntent);
+            return;
+        } catch (ActivityNotFoundException e) {
+            // try WhatsApp Business
+        }
+
+        Intent waBusinessIntent = new Intent(sendIntent);
+        waBusinessIntent.setPackage("com.whatsapp.w4b");
+        try {
+            startActivity(waBusinessIntent);
+            return;
+        } catch (ActivityNotFoundException e) {
+            // fallback ke chooser
+        }
+
+        startActivity(Intent.createChooser(sendIntent, "Kirim riwayat via"));
+    }
+
+    private String buildHistoryMessage(List<Transaction> txs) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Riwayat Transaksi\n");
+        sb.append("===================\n");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+        double totalAll = 0.0;
+        int idx = 1;
+        for (Transaction t : txs) {
+            Date ts = t.getTimestamp();
+            String dateString = ts != null ? sdf.format(ts) : "-";
+            double total = t.getTotal();
+            totalAll += total;
+            sb.append(String.format(Locale.getDefault(), "%d. %s | Total: Rp %.0f | Bayar: Rp %.0f | Kembali: Rp %.0f\n",
+                    idx++, dateString, total, t.getAmountPaid(), t.getChange()));
+        }
+        sb.append("-------------------\n");
+        sb.append(String.format(Locale.getDefault(), "Jumlah transaksi: %d\n", txs.size()));
+        sb.append(String.format(Locale.getDefault(), "Total keseluruhan: Rp %.0f\n", totalAll));
+        return sb.toString();
     }
 
     private void refreshTransactions() {
